@@ -7,7 +7,10 @@ import com.cleartrip.bootcamp_ecommerce.services.ProductService;
 import com.cleartrip.bootcamp_ecommerce.utils.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -72,6 +75,25 @@ public class ProductController {
            throw new UnauthorizedAccessException("Access Denied");
        }
         return productService.searchProductsByCategory(category);
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<List<Product>> filterProducts(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice) {
+
+        List<Product> products = productService.getFilteredProducts(category, minPrice, maxPrice);
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/sort")
+    public ResponseEntity<List<Product>> sortProducts(
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDirection) {
+
+        List<Product> sortedProducts = productService.getSortedProducts(sortBy, sortDirection);
+        return ResponseEntity.ok(sortedProducts);
     }
 
 }

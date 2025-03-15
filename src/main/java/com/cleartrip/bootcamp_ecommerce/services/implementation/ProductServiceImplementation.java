@@ -8,6 +8,7 @@ import com.cleartrip.bootcamp_ecommerce.repository.OrderItemsRepository;
 import com.cleartrip.bootcamp_ecommerce.repository.ProductRepository;
 import com.cleartrip.bootcamp_ecommerce.services.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -45,6 +46,19 @@ public class ProductServiceImplementation implements ProductService {
         } catch (Exception e) {
             return e.getMessage();
         }
+    }
+
+    @Override
+    public List<Product> getSortedProducts(String sortBy, String sortDirection) {
+        Sort.Direction direction = sortDirection.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy);
+
+        return productRepository.findAll(sort);
+    }
+
+    @Override
+    public List<Product> getFilteredProducts(String category, BigDecimal minPrice, BigDecimal maxPrice) {
+        return productRepository.findByFilters(category, minPrice, maxPrice);
     }
 
 //    @Override

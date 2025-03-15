@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductServiceImplementation implements ProductService {
@@ -49,16 +50,22 @@ public class ProductServiceImplementation implements ProductService {
     }
 
     @Override
-    public List<Product> getSortedProducts(String sortBy, String sortDirection) {
+    public List<Product> getSortedProducts(String sortBy, String sortDirection,int page,int size) {
         Sort.Direction direction = sortDirection.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Sort sort = Sort.by(direction, sortBy);
 
-        return productRepository.findAll(sort);
+        return productRepository.findAll(sort).stream()
+                .skip((long) page * size)  // Skip previous pages
+                .limit(size)               // Limit results to page size
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<Product> getFilteredProducts(String category, BigDecimal minPrice, BigDecimal maxPrice) {
-        return productRepository.findByFilters(category, minPrice, maxPrice);
+    public List<Product> getFilteredProducts(String category, BigDecimal minPrice, BigDecimal maxPrice,int page,int size) {
+        return productRepository.findByFilters(category, minPrice, maxPrice).stream()
+                .skip((long) page * size)  // Skip previous pages
+                .limit(size)               // Limit results to page size
+                .collect(Collectors.toList());
     }
 
 //    @Override
@@ -120,8 +127,11 @@ public class ProductServiceImplementation implements ProductService {
 
 
     @Override
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public List<Product> getAllProducts(int page,int size) {
+        return productRepository.findAll().stream()
+                .skip((long) page * size)  // Skip previous pages
+                .limit(size)               // Limit results to page size
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -130,13 +140,19 @@ public class ProductServiceImplementation implements ProductService {
     }
 
     @Override
-    public List<Product> searchProductsByName(String name) {
-        return productRepository.findByName(name);
+    public List<Product> searchProductsByName(String name,int page,int size) {
+        return productRepository.findByName(name).stream()
+                .skip((long) page * size)  // Skip previous pages
+                .limit(size)               // Limit results to page size
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<Product> searchProductsByCategory(String category) {
-        return productRepository.findByCategory(category);
+    public List<Product> searchProductsByCategory(String category,int page,int size) {
+        return productRepository.findByCategory(category).stream()
+                .skip((long) page * size)  // Skip previous pages
+                .limit(size)               // Limit results to page size
+                .collect(Collectors.toList());
     }
 
 }

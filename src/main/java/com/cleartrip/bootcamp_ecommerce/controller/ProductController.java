@@ -25,11 +25,13 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> getAllProducts(HttpServletRequest request) throws UnauthorizedAccessException {
+    public List<Product> getAllProducts(HttpServletRequest request,
+                                        @RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "5") int size) throws UnauthorizedAccessException {
         if (!CookieUtils.isAdmin(request)) {
             throw new UnauthorizedAccessException("Access Denied");
         }
-        return productService.getAllProducts();
+        return productService.getAllProducts(page,size);
     }
 
     @PostMapping("/add")
@@ -62,37 +64,47 @@ public class ProductController {
     }
 
    @GetMapping("/name/{name}")
-    public List<Product> getProductByName(@PathVariable String name,HttpServletRequest request) throws UnauthorizedAccessException {
+    public List<Product> getProductByName(@PathVariable String name,
+                                          HttpServletRequest request,
+                                          @RequestParam(defaultValue = "0") int page,
+                                          @RequestParam(defaultValue = "5") int size) throws UnauthorizedAccessException {
        if (!CookieUtils.isAdmin(request)) {
            throw new UnauthorizedAccessException("Access Denied");
        }
-        return productService.searchProductsByName(name);
+        return productService.searchProductsByName(name,page,size);
    }
 
    @GetMapping("/category/{category}")
-    public List<Product> searchProductsByCategory(@PathVariable String category,HttpServletRequest request) throws UnauthorizedAccessException{
+    public List<Product> searchProductsByCategory(@PathVariable String category,
+                                                  HttpServletRequest request,
+                                                  @RequestParam(defaultValue = "0") int page,
+                                                  @RequestParam(defaultValue = "5") int size) throws UnauthorizedAccessException{
        if (!CookieUtils.isAdmin(request)) {
            throw new UnauthorizedAccessException("Access Denied");
        }
-        return productService.searchProductsByCategory(category);
+        return productService.searchProductsByCategory(category,page,size);
     }
 
     @GetMapping("/filter")
     public ResponseEntity<List<Product>> filterProducts(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) BigDecimal minPrice,
-            @RequestParam(required = false) BigDecimal maxPrice) {
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
 
-        List<Product> products = productService.getFilteredProducts(category, minPrice, maxPrice);
+        List<Product> products = productService.getFilteredProducts(category, minPrice, maxPrice,page,size);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/sort")
     public ResponseEntity<List<Product>> sortProducts(
             @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDirection) {
+            @RequestParam(defaultValue = "asc") String sortDirection,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
 
-        List<Product> sortedProducts = productService.getSortedProducts(sortBy, sortDirection);
+        List<Product> sortedProducts = productService.getSortedProducts(sortBy, sortDirection,page,size);
         return ResponseEntity.ok(sortedProducts);
     }
 

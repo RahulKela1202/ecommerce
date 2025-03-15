@@ -22,6 +22,7 @@ public class OrderServiceImplementation implements OrderService {
     private final ProductRepository productRepository;
     private final OrderItemsRepository orderItemsRepository;
     private final InventoryRepository inventoryRepository;
+    private final CartRepository cartRepository;
     private final CartService cartService;
 
     @Autowired
@@ -30,12 +31,14 @@ public class OrderServiceImplementation implements OrderService {
                                       ProductRepository productRepository,
                                       OrderItemsRepository orderItemsRepository,
                                       InventoryRepository inventoryRepository,
+                                      CartRepository cartRepository,
                                       CartService cartService){
         this.orderRepository  = orderRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.orderItemsRepository = orderItemsRepository;
         this.inventoryRepository = inventoryRepository;
+        this.cartRepository = cartRepository;
         this.cartService = cartService;
     }
 
@@ -101,21 +104,41 @@ public class OrderServiceImplementation implements OrderService {
         order.setStatus(OrderStatus.PENDING);
         order.setShippingAddress(shippingAddress);
 
-        List<OrderItems> orderItems = cart.getCartItems().stream().map(cartItem -> {
+        List<OrderItems> orderItems = new ArrayList<>();
+
+         for(CartItem cartItem : cart.getCartItems()){
+
+            Product product = productRepository.findById(cartItem.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            Inventory inventory = inventoryRepository.findByProductId(product.getId())
+                    .orElseThrow(() -> new RuntimeException("Inventory not found for product " + product.getId()));
+
+            if (inventory.getStockQuantity() < cartItem.getQuantity()) {
+                throw new RuntimeException("Not enough stock for product: " + product.getName());
+            }
+
+            // Deduct stock
+            inventory.setStockQuantity(inventory.getStockQuantity() - cartItem.getQuantity());
+            inventoryRepository.save(inventory);
+
+
             OrderItems orderItem = new OrderItems();
             orderItem.setOrder(order);
             orderItem.setProduct(cartItem.getProduct());
             orderItem.setQuantity(cartItem.getQuantity());
-            return orderItem;
-        }).collect(Collectors.toList());
+
+            orderItems.add(orderItem);
+        }
 
         order.setOrderItems(orderItems);
         order.setTotalAmount(orderItems.stream()
                 .mapToDouble(item -> item.getProduct().getPrice().doubleValue() * item.getQuantity())
                 .sum());
 
+        cart.getCartItems().clear();
+        cartRepository.save(cart);
         orderRepository.save(order);
-        cartService.clearCart(userId);
         return order;
     }
 

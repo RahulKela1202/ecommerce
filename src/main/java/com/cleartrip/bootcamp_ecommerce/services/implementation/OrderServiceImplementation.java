@@ -156,4 +156,13 @@ public class OrderServiceImplementation implements OrderService {
     public List<Order> getOrderByUserId(Long id){
         return orderRepository.findAllByUserId(id);
     }
+
+    @Transactional
+    public void updateOrderStatus(Long orderId, OrderStatus status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        order.setStatus(status);
+        orderRepository.save(order);
+    }
 }

@@ -9,10 +9,10 @@ import java.util.List;
 
 public interface CartService {
     List<CartItem> getCartByUserId(Long userId);
-    void addToCart(Long userId, Long productId, int quantity);
-    void removeFromCart(Long userId, Long productId);
-    void reduceFromCart(Long userId,Long productId);
-    void clearCart(Long UserId);
+    Cart addToCart(Long userId, Long productId, int quantity);
+    Cart removeFromCart(Long userId, Long productId);
+    Cart reduceFromCart(Long userId,Long productId);
+    Cart clearCart(Long UserId);
     double getTotalAmount(Long UserId);
     Cart getCartByUser(User user);
 }

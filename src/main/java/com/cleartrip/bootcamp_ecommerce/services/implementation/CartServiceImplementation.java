@@ -57,7 +57,7 @@ public class CartServiceImplementation implements CartService {
     }
 
     @Override
-    public void addToCart(Long userId, Long productId, int quantity) {
+    public Cart addToCart(Long userId, Long productId, int quantity) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Product product = productRepository.findById(productId)
@@ -78,13 +78,15 @@ public class CartServiceImplementation implements CartService {
             cart.getCartItems().add(cartItem);
         }
 
-        cartRepository.save(cart);
+        return cartRepository.save(cart);
     }
 
     @Override
-    public void reduceFromCart(Long userId, Long productId) {
+    public Cart reduceFromCart(Long userId, Long productId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean productExist = false;
 
         Cart cart = getCartByUser(user);
 
@@ -92,6 +94,7 @@ public class CartServiceImplementation implements CartService {
         while (iterator.hasNext()) {
             CartItem item = iterator.next();
             if (item.getProduct().getId().equals(productId)) {
+                productExist = true;
                 if (item.getQuantity() > 1) {
                     // Reduce quantity by 1
                     item.setQuantity(item.getQuantity() - 1);
@@ -102,28 +105,32 @@ public class CartServiceImplementation implements CartService {
                 break;
             }
         }
+        if(!productExist){
+            throw new RuntimeException("Product not found in cart");
+        }
 
-        cartRepository.save(cart);
+        return cartRepository.save(cart);
     }
 
     @Override
     @Transactional
-    public void clearCart(Long userId) {
+    public Cart clearCart(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Cart cart = getCartByUser(user);
         cartItemRepository.deleteByCart(cart);
+        return cart;
     }
 
     @Override
-    public void removeFromCart(Long userId, Long productId) {
+    public Cart removeFromCart(Long userId, Long productId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Cart cart = getCartByUser(user);
         cart.getCartItems().removeIf(item -> item.getProduct().getId().equals(productId));
-        cartRepository.save(cart);
+        return cartRepository.save(cart);
     }
 
     @Override

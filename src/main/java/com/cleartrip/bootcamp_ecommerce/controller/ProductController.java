@@ -1,5 +1,6 @@
 package com.cleartrip.bootcamp_ecommerce.controller;
 
+import com.cleartrip.bootcamp_ecommerce.dto.ApiResponse;
 import com.cleartrip.bootcamp_ecommerce.dto.NewProduct;
 import com.cleartrip.bootcamp_ecommerce.exception.UnauthorizedAccessException;
 import com.cleartrip.bootcamp_ecommerce.models.Product;
@@ -7,6 +8,7 @@ import com.cleartrip.bootcamp_ecommerce.services.ProductService;
 import com.cleartrip.bootcamp_ecommerce.utils.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,68 +27,69 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> getAllProducts(HttpServletRequest request,
+    public ResponseEntity<ApiResponse<List<Product>>>  getAllProducts(HttpServletRequest request,
                                         @RequestParam(defaultValue = "0") int page,
-                                        @RequestParam(defaultValue = "5") int size) throws UnauthorizedAccessException {
+                                        @RequestParam(defaultValue = "5") int size)  {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return productService.getAllProducts(page,size);
+        return ResponseEntity.ok(new ApiResponse<>("success",productService.getAllProducts(page,size),"Retrieved All Product"));
     }
 
     @PostMapping("/add")
-    public String createProduct(@RequestBody NewProduct newproduct, HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<String>> createProduct(@RequestBody NewProduct newproduct, HttpServletRequest request) {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
         Product product = new Product();
         product.setName(newproduct.getName());
         product.setDescription(newproduct.getDescription());
         product.setPrice(newproduct.getPrice());
         product.setCategory(newproduct.getCategory());
-        return productService.addNewProduct(product, newproduct.getStockQuantity());
+
+        return ResponseEntity.ok(new ApiResponse<>("success",productService.addNewProduct(product, newproduct.getStockQuantity()),"Created new Product"));
     }
 
     @PatchMapping("/update/{id}")
-    public Product updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> updates, HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<Product>> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> updates, HttpServletRequest request) {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return productService.updateProduct(id,updates);
+        return ResponseEntity.ok(new ApiResponse<>("success",productService.updateProduct(id,updates),"Updated Product"));
     }
 
     @DeleteMapping("/{id}")
-    public String deleteProduct(@PathVariable Long id,HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable Long id,HttpServletRequest request) {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return productService.deleteProduct(id);
+        return ResponseEntity.ok(new ApiResponse<>("success",productService.deleteProduct(id),"Deleted Product"));
     }
 
    @GetMapping("/name/{name}")
-    public List<Product> getProductByName(@PathVariable String name,
+    public ResponseEntity<ApiResponse<List<Product>>>  getProductByName(@PathVariable String name,
                                           HttpServletRequest request,
                                           @RequestParam(defaultValue = "0") int page,
-                                          @RequestParam(defaultValue = "5") int size) throws UnauthorizedAccessException {
+                                          @RequestParam(defaultValue = "5") int size)  {
        if (!CookieUtils.isAdmin(request)) {
-           throw new UnauthorizedAccessException("Access Denied");
+           return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
        }
-        return productService.searchProductsByName(name,page,size);
+        return ResponseEntity.ok(new ApiResponse<>("success",productService.searchProductsByName(name,page,size),"Retrieved product by name"));
    }
 
    @GetMapping("/category/{category}")
-    public List<Product> searchProductsByCategory(@PathVariable String category,
+    public ResponseEntity<ApiResponse<List<Product>>> searchProductsByCategory(@PathVariable String category,
                                                   HttpServletRequest request,
                                                   @RequestParam(defaultValue = "0") int page,
-                                                  @RequestParam(defaultValue = "5") int size) throws UnauthorizedAccessException{
+                                                  @RequestParam(defaultValue = "5") int size) {
        if (!CookieUtils.isAdmin(request)) {
-           throw new UnauthorizedAccessException("Access Denied");
+           return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
        }
-        return productService.searchProductsByCategory(category,page,size);
+       return ResponseEntity.ok(new ApiResponse<>("success",productService.searchProductsByCategory(category,page,size),"Retrieved Products by category"));
     }
 
     @GetMapping("/filter")
-    public ResponseEntity<List<Product>> filterProducts(
+    public ResponseEntity<ApiResponse<List<Product>>> filterProducts(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
@@ -94,18 +97,18 @@ public class ProductController {
             @RequestParam(defaultValue = "5") int size) {
 
         List<Product> products = productService.getFilteredProducts(category, minPrice, maxPrice,page,size);
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(new ApiResponse<>("success",products,"Retrieved  Filtered Products"));
     }
 
     @GetMapping("/sort")
-    public ResponseEntity<List<Product>> sortProducts(
+    public ResponseEntity<ApiResponse<List<Product>>> sortProducts(
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDirection,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
 
         List<Product> sortedProducts = productService.getSortedProducts(sortBy, sortDirection,page,size);
-        return ResponseEntity.ok(sortedProducts);
+        return ResponseEntity.ok(new ApiResponse<>("success",sortedProducts,"Retrieved  sorted Products"));
     }
 
 }

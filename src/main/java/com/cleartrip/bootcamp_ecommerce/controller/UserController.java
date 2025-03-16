@@ -1,5 +1,6 @@
 package com.cleartrip.bootcamp_ecommerce.controller;
 
+import com.cleartrip.bootcamp_ecommerce.dto.ApiResponse;
 import com.cleartrip.bootcamp_ecommerce.dto.LoginObject;
 import com.cleartrip.bootcamp_ecommerce.models.User;
 import com.cleartrip.bootcamp_ecommerce.services.UserService;
@@ -24,37 +25,37 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUser(User user){
-        return userService.getAllUser();
+    public ResponseEntity<ApiResponse<List<User>>> getAllUser(User user){
+        return ResponseEntity.ok(new ApiResponse<>("success", userService.getAllUser(),"Retrieved All Users"));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody LoginObject loginObject, HttpServletRequest request){
+    public ResponseEntity<ApiResponse<User>> loginUser(@RequestBody LoginObject loginObject, HttpServletRequest request){
         User loggedInUser =  userService.login(loginObject.getEmail(), loginObject.getPassword());
 
         HttpSession session = request.getSession();
         session.setAttribute("userId", loggedInUser.getId());
         session.setAttribute("userRole", loggedInUser.getRole());
 
-         return ResponseEntity.ok("Login successful");
+         return ResponseEntity.ok(new ApiResponse<>("success",loggedInUser,"Logged in"));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<String>> logoutUser(HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
         }
-        return ResponseEntity.ok("Logout successful");
+        return ResponseEntity.ok(new ApiResponse<>("Success","","Logout successful"));
     }
 
     @PostMapping("/add")
-    public User addUser(@RequestBody User user){
-        return userService.addUser(user);
+    public ResponseEntity<ApiResponse<User>> addUser(@RequestBody User user){
+        return ResponseEntity.ok(new ApiResponse<>("Success",userService.addUser(user),"User Added successful"));
     }
 
     @GetMapping("/{id}")
-    public Optional<User> getUserById(@PathVariable Long id){
-        return userService.getById(id);
+    public ResponseEntity<ApiResponse<Optional<User>>> getUserById(@PathVariable Long id){
+        return ResponseEntity.ok(new ApiResponse<>("Success",userService.getById(id),"Logout successful"));
     }
 }

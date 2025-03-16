@@ -1,13 +1,15 @@
 package com.cleartrip.bootcamp_ecommerce.controller;
 
 
+import com.cleartrip.bootcamp_ecommerce.dto.ApiResponse;
 import com.cleartrip.bootcamp_ecommerce.dto.StockUpdate;
-import com.cleartrip.bootcamp_ecommerce.exception.UnauthorizedAccessException;
 import com.cleartrip.bootcamp_ecommerce.models.Inventory;
 import com.cleartrip.bootcamp_ecommerce.services.InventoryService;
 import com.cleartrip.bootcamp_ecommerce.utils.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,34 +25,34 @@ public class InventoryController {
     }
 
     @PatchMapping("/inc")
-    public String incStock(@RequestBody StockUpdate stockUpdate, HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<String>> incStock(@RequestBody StockUpdate stockUpdate, HttpServletRequest request) {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return inventoryService.incStock(stockUpdate.getId(),stockUpdate.getQuantity());
+        return ResponseEntity.ok(new ApiResponse<>("success",inventoryService.incStock(stockUpdate.getId(),stockUpdate.getQuantity()),"Updated Stock"));
     }
 
     @PatchMapping("/dec")
-    public String decStock(@RequestBody StockUpdate stockUpdate,HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<String>> decStock(@RequestBody StockUpdate stockUpdate,HttpServletRequest request) {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return inventoryService.decStock(stockUpdate.getId(),stockUpdate.getQuantity());
+        return ResponseEntity.ok(new ApiResponse<>("success",inventoryService.decStock(stockUpdate.getId(),stockUpdate.getQuantity()),"Updated Stock"));
     }
 
     @PatchMapping("/update")
-    public String updateStock(@RequestBody StockUpdate stockUpdate,HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<String>> updateStock(@RequestBody StockUpdate stockUpdate,HttpServletRequest request)  {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return inventoryService.updateStock(stockUpdate.getId(),stockUpdate.getQuantity());
+        return ResponseEntity.ok(new ApiResponse<>("success",inventoryService.updateStock(stockUpdate.getId(),stockUpdate.getQuantity()),"Updated Stock"));
     }
 
     @GetMapping
-    public List<Inventory> getInvetory(HttpServletRequest request) throws UnauthorizedAccessException {
+    public ResponseEntity<ApiResponse<List<Inventory>>> getInvetory(HttpServletRequest request) {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return inventoryService.getInvetoryDetails();
+        return  ResponseEntity.ok(new ApiResponse<>("success",inventoryService.getInvetoryDetails(),"Inventory Retrieved"));
     }
 }

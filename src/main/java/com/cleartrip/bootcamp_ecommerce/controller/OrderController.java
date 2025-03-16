@@ -1,8 +1,8 @@
 package com.cleartrip.bootcamp_ecommerce.controller;
 
+import com.cleartrip.bootcamp_ecommerce.dto.ApiResponse;
 import com.cleartrip.bootcamp_ecommerce.dto.CartRequest;
 import com.cleartrip.bootcamp_ecommerce.dto.OrderRequest;
-import com.cleartrip.bootcamp_ecommerce.exception.UnauthorizedAccessException;
 import com.cleartrip.bootcamp_ecommerce.models.Order;
 import com.cleartrip.bootcamp_ecommerce.models.OrderStatus;
 import com.cleartrip.bootcamp_ecommerce.services.OrderService;
@@ -10,6 +10,7 @@ import com.cleartrip.bootcamp_ecommerce.utils.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,42 +28,42 @@ public class OrderController {
     }
 
     @PostMapping("/new")
-    public Order createNewOrder(@RequestBody OrderRequest order){
-        return orderService.createOrder(order);
+    public ResponseEntity<ApiResponse<Order>>  createNewOrder(@RequestBody OrderRequest order){
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.createOrder(order),"Created New Order"));
     }
 
     @PostMapping("/cart/checkout")
-    public Order cartCheckout(@RequestBody CartRequest cartRequest, HttpServletRequest request){
+    public ResponseEntity<ApiResponse<Order>> cartCheckout(@RequestBody CartRequest cartRequest, HttpServletRequest request){
         HttpSession session = request.getSession(false);
         Long id = (Long) session.getAttribute("userId");
-        return orderService.checkout(id,cartRequest.getShippingAddress());
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.checkout(id,cartRequest.getShippingAddress()),"checked out cart"));
     }
 
     @GetMapping
-    public List<Order> getAllOrder(){
-        return orderService.getAllOrder();
+    public ResponseEntity<ApiResponse<List<Order>>> getAllOrder(){
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getAllOrder(),"Orders Retrieved"));
     }
 
     @GetMapping("/{id}")
-    public Optional<Order> getOrderById(@PathVariable Long id){
-        return orderService.getOrderById(id);
+    public ResponseEntity<ApiResponse<Optional<Order>>> getOrderById(@PathVariable Long id){
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getOrderById(id),"Orders Retrieved"));
     }
 
     @GetMapping("user/{id}")
-    public List<Order> getOrderByUserId(@PathVariable Long id){
-        return orderService.getOrderByUserId(id);
+    public ResponseEntity<ApiResponse<List<Order>>> getOrderByUserId(@PathVariable Long id){
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getOrderByUserId(id),"Orders Retrieved"));
     }
 
     @PatchMapping("/{orderId}/update-status")
-    public ResponseEntity<String> updateOrderStatus(@PathVariable Long orderId,
+    public ResponseEntity<ApiResponse<String>> updateOrderStatus(@PathVariable Long orderId,
                                                     @RequestParam OrderStatus status,
                                                     HttpServletRequest request)
-            throws UnauthorizedAccessException {
+          {
         if (!CookieUtils.isAdmin(request)) {
-            throw new UnauthorizedAccessException("Access Denied");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
 
         orderService.updateOrderStatus(orderId, status);
-        return ResponseEntity.ok("Order status updated to " + status);
+        return ResponseEntity.ok(new ApiResponse<>("success","Order status updated to " + status,"Updated Order Status"));
     }
 }

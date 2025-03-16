@@ -1,6 +1,6 @@
 package com.cleartrip.bootcamp_ecommerce.utils;
 
-import jakarta.servlet.http.Cookie;
+import com.cleartrip.bootcamp_ecommerce.exception.UnauthorizedAccessException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
@@ -17,5 +17,13 @@ public class CookieUtils {
         }
         String role = session.getAttribute("userRole").toString();
         return role.equals("Admin");
+    }
+    public static Long getUserId(HttpServletRequest request){
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            System.out.println("Session null");
+            throw new UnauthorizedAccessException("Login First");
+        }
+        return (Long) session.getAttribute("userId");
     }
 }

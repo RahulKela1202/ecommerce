@@ -1,17 +1,14 @@
 package com.cleartrip.bootcamp_ecommerce.services.implementation;
 
-import com.cleartrip.bootcamp_ecommerce.dto.InventoryDto;
+
 import com.cleartrip.bootcamp_ecommerce.models.Inventory;
-import com.cleartrip.bootcamp_ecommerce.models.Product;
 import com.cleartrip.bootcamp_ecommerce.repository.InventoryRepository;
-import com.cleartrip.bootcamp_ecommerce.repository.ProductRepository;
 import com.cleartrip.bootcamp_ecommerce.services.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class InventoryServiceImplementation implements InventoryService {
@@ -70,7 +67,7 @@ public class InventoryServiceImplementation implements InventoryService {
         }
     }
     @Override
-    public List<Inventory> getInvetoryDetails() {
+    public List<Inventory> getInventoryDetails() {
         return inventoryRepository.findAll();
     }
 }

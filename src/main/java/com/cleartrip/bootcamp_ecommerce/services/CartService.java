@@ -3,7 +3,7 @@ package com.cleartrip.bootcamp_ecommerce.services;
 import com.cleartrip.bootcamp_ecommerce.models.Cart;
 import com.cleartrip.bootcamp_ecommerce.models.CartItem;
 import com.cleartrip.bootcamp_ecommerce.models.User;
-import jakarta.servlet.http.HttpServletRequest;
+
 
 import java.util.List;
 

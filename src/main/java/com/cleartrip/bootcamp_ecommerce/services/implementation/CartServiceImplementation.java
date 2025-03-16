@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.annotation.SessionScope;
 
-import java.util.ArrayList;
+
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -71,10 +71,7 @@ public class CartServiceImplementation implements CartService {
         if (existingItem.isPresent()) {
             existingItem.get().setQuantity(existingItem.get().getQuantity() + quantity);
         } else {
-            CartItem cartItem = new CartItem();
-            cartItem.setCart(cart);
-            cartItem.setProduct(product);
-            cartItem.setQuantity(quantity);
+            CartItem cartItem = new CartItem(cart, product, quantity);
             cart.getCartItems().add(cartItem);
         }
 
@@ -96,10 +93,8 @@ public class CartServiceImplementation implements CartService {
             if (item.getProduct().getId().equals(productId)) {
                 productExist = true;
                 if (item.getQuantity() > 1) {
-                    // Reduce quantity by 1
                     item.setQuantity(item.getQuantity() - 1);
                 } else {
-                    // If quantity is 1, remove item completely
                     iterator.remove();
                 }
                 break;
@@ -108,7 +103,6 @@ public class CartServiceImplementation implements CartService {
         if(!productExist){
             throw new RuntimeException("Product not found in cart");
         }
-
         return cartRepository.save(cart);
     }
 

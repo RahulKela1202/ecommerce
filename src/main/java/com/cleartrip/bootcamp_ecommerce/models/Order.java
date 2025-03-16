@@ -3,6 +3,8 @@ package com.cleartrip.bootcamp_ecommerce.models;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import org.aspectj.weaver.ast.Or;
+
 import java.util.List;
 
 @Entity
@@ -33,5 +35,17 @@ public class Order {
     @JsonIgnoreProperties("order")
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<OrderItems> orderItems;
+
+    public Order(User user,Double totalAmount, OrderStatus status, String shippingAddress){
+        this.shippingAddress = shippingAddress;
+        this.status = status;
+        this.totalAmount = totalAmount;
+        this.user = user;
+    }
+    public Order(User user, OrderStatus status, String shippingAddress){
+        this.shippingAddress = shippingAddress;
+        this.status = status;
+        this.user = user;
+    }
 }
 

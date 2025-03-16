@@ -53,6 +53,6 @@ public class InventoryController {
         if (!CookieUtils.isAdmin(request)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
-        return  ResponseEntity.ok(new ApiResponse<>("success",inventoryService.getInvetoryDetails(),"Inventory Retrieved"));
+        return  ResponseEntity.ok(new ApiResponse<>("success",inventoryService.getInventoryDetails(),"Inventory Retrieved"));
     }
 }

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
 
 @Service
 public class OrderServiceImplementation implements OrderService {
@@ -48,37 +48,19 @@ public class OrderServiceImplementation implements OrderService {
         User user = userRepository.findById(orderRequest.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Order order = new Order();
-        order.setUser(user);
-        order.setTotalAmount(orderRequest.getTotalAmount());
-        order.setStatus(OrderStatus.PENDING);
-        order.setShippingAddress(orderRequest.getShippingAddress());
-
+        Order order = new Order(user,orderRequest.getTotalAmount(),OrderStatus.PENDING,orderRequest.getShippingAddress());
         // Save the order first to get its ID
         order = orderRepository.save(order);
 
         List<OrderItems> orderItems = new ArrayList<>();
 
+        // update the inventory and add the orderItem to orderItems array
         for (OrderItemRequest itemRequest : orderRequest.getOrderItems()) {
+            inventoryUpdate(itemRequest.getProductId(),itemRequest.getQuantity());
             Product product = productRepository.findById(itemRequest.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
-            Inventory inventory = inventoryRepository.findByProductId(product.getId())
-                    .orElseThrow(() -> new RuntimeException("Inventory not found for product " + product.getId()));
-
-            if (inventory.getStockQuantity() < itemRequest.getQuantity()) {
-                throw new RuntimeException("Not enough stock for product: " + product.getName());
-            }
-
-            // Deduct stock
-            inventory.setStockQuantity(inventory.getStockQuantity() - itemRequest.getQuantity());
-            inventoryRepository.save(inventory);
-
-            OrderItems orderItem = new OrderItems();
-            orderItem.setOrder(order);
-            orderItem.setProduct(product);
-            orderItem.setQuantity(itemRequest.getQuantity());
-
+            OrderItems orderItem = new OrderItems(order,product,itemRequest.getQuantity());
             orderItems.add(orderItem);
         }
 
@@ -99,35 +81,14 @@ public class OrderServiceImplementation implements OrderService {
             throw new RuntimeException("Cart is empty");
         }
 
-        Order order = new Order();
-        order.setUser(user);
-        order.setStatus(OrderStatus.PENDING);
-        order.setShippingAddress(shippingAddress);
+        Order order = new Order(user,OrderStatus.PENDING,shippingAddress);
 
         List<OrderItems> orderItems = new ArrayList<>();
 
+        // update the inventory and add the cartItem to orderItems array
          for(CartItem cartItem : cart.getCartItems()){
-
-            Product product = productRepository.findById(cartItem.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
-
-            Inventory inventory = inventoryRepository.findByProductId(product.getId())
-                    .orElseThrow(() -> new RuntimeException("Inventory not found for product " + product.getId()));
-
-            if (inventory.getStockQuantity() < cartItem.getQuantity()) {
-                throw new RuntimeException("Not enough stock for product: " + product.getName());
-            }
-
-            // Deduct stock
-            inventory.setStockQuantity(inventory.getStockQuantity() - cartItem.getQuantity());
-            inventoryRepository.save(inventory);
-
-
-            OrderItems orderItem = new OrderItems();
-            orderItem.setOrder(order);
-            orderItem.setProduct(cartItem.getProduct());
-            orderItem.setQuantity(cartItem.getQuantity());
-
+            inventoryUpdate(cartItem.getProduct().getId(),cartItem.getQuantity());
+            OrderItems orderItem = new OrderItems(order,cartItem.getProduct(),cartItem.getQuantity());
             orderItems.add(orderItem);
         }
 
@@ -164,5 +125,20 @@ public class OrderServiceImplementation implements OrderService {
 
         order.setStatus(status);
         orderRepository.save(order);
+    }
+
+    public void inventoryUpdate(Long productId, int quantity) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        Inventory inventory = inventoryRepository.findByProductId(product.getId())
+                .orElseThrow(() -> new RuntimeException("Inventory not found for product " + product.getId()));
+
+        if (inventory.getStockQuantity() < quantity) {
+            throw new RuntimeException("Not enough stock for product: " + product.getName());
+        }
+
+        inventory.setStockQuantity(inventory.getStockQuantity() - quantity);
+        inventoryRepository.save(inventory);
     }
 }

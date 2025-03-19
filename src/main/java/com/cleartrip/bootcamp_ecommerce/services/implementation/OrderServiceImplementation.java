@@ -2,10 +2,13 @@ package com.cleartrip.bootcamp_ecommerce.services.implementation;
 
 import com.cleartrip.bootcamp_ecommerce.dto.OrderItemRequest;
 import com.cleartrip.bootcamp_ecommerce.dto.OrderRequest;
+import com.cleartrip.bootcamp_ecommerce.exception.InvalidRequestException;
+import com.cleartrip.bootcamp_ecommerce.exception.NotFoundException;
 import com.cleartrip.bootcamp_ecommerce.models.*;
 import com.cleartrip.bootcamp_ecommerce.repository.*;
 import com.cleartrip.bootcamp_ecommerce.services.CartService;
 import com.cleartrip.bootcamp_ecommerce.services.OrderService;
+import com.cleartrip.bootcamp_ecommerce.services.ProductService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,127 +21,121 @@ import java.util.Optional;
 @Service
 public class OrderServiceImplementation implements OrderService {
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
-    private final ProductRepository productRepository;
-    private final OrderItemsRepository orderItemsRepository;
-    private final InventoryRepository inventoryRepository;
     private final CartRepository cartRepository;
+    private final ProductService productService;
     private final CartService cartService;
-
     @Autowired
     public OrderServiceImplementation(OrderRepository orderRepository,
-                                      UserRepository userRepository,
-                                      ProductRepository productRepository,
-                                      OrderItemsRepository orderItemsRepository,
-                                      InventoryRepository inventoryRepository,
                                       CartRepository cartRepository,
+                                      ProductService productService,
                                       CartService cartService){
         this.orderRepository  = orderRepository;
-        this.userRepository = userRepository;
-        this.productRepository = productRepository;
-        this.orderItemsRepository = orderItemsRepository;
-        this.inventoryRepository = inventoryRepository;
         this.cartRepository = cartRepository;
+        this.productService = productService;
         this.cartService = cartService;
     }
 
     @Override
     @Transactional
-    public Order createOrder(OrderRequest orderRequest) {
-        User user = userRepository.findById(orderRequest.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Order order = new Order(user,orderRequest.getTotalAmount(),OrderStatus.PENDING,orderRequest.getShippingAddress());
-        // Save the order first to get its ID
-        order = orderRepository.save(order);
-
-        List<OrderItems> orderItems = new ArrayList<>();
-
-        // update the inventory and add the orderItem to orderItems array
-        for (OrderItemRequest itemRequest : orderRequest.getOrderItems()) {
-            inventoryUpdate(itemRequest.getProductId(),itemRequest.getQuantity());
-            Product product = productRepository.findById(itemRequest.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
-
-            OrderItems orderItem = new OrderItems(order,product,itemRequest.getQuantity());
-            orderItems.add(orderItem);
-        }
-
-        orderItemsRepository.saveAll(orderItems);
-
-        order.setOrderItems(orderItems);
-
-        return order;
-    }
-
-    @Transactional
     public Order checkout(Long userId, String shippingAddress) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Cart cart = cartService.getCartByUser(user);
-        if (cart.getCartItems().isEmpty()) {
-            throw new RuntimeException("Cart is empty");
-        }
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Cart not found for user: " + userId));
 
-        Order order = new Order(user,OrderStatus.PENDING,shippingAddress);
+        List<CartItem> cartItems = cart.getCartItems();
 
         List<OrderItems> orderItems = new ArrayList<>();
 
         // update the inventory and add the cartItem to orderItems array
          for(CartItem cartItem : cart.getCartItems()){
-            inventoryUpdate(cartItem.getProduct().getId(),cartItem.getQuantity());
-            OrderItems orderItem = new OrderItems(order,cartItem.getProduct(),cartItem.getQuantity());
+            OrderItems orderItem = inventoryUpdate(cartItem.getProductId(),cartItem.getQuantity());
             orderItems.add(orderItem);
         }
-
+        
+        Order order = new Order(userId,orderItems,cart.getTotalAmount(),shippingAddress,OrderStatus.PENDING);
         order.setOrderItems(orderItems);
-        order.setTotalAmount(orderItems.stream()
-                .mapToDouble(item -> item.getProduct().getPrice().doubleValue() * item.getQuantity())
-                .sum());
-
-        cart.getCartItems().clear();
-        cartRepository.save(cart);
+        cartService.clear(userId);
         orderRepository.save(order);
         return order;
     }
 
     @Override
-    public List<Order> getAllOrder(){
+    public List<Order> getAll(){
         return orderRepository.findAll();
     }
 
     @Override
-    public Optional<Order> getOrderById(Long id){
-        return orderRepository.findById(id);
+    public Order getById(Long id){
+        return orderRepository.findById(id)
+                .orElseThrow(()->new NotFoundException("Order not found"));
     }
 
     @Override
-    public List<Order> getOrderByUserId(Long id){
+    public List<Order> getByUserId(Long id){
         return orderRepository.findAllByUserId(id);
     }
 
+    @Override
     @Transactional
-    public void updateOrderStatus(Long orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-
+    public Order updateStatus(Long id, OrderStatus status) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Order not found"));
+        
+        // If order is being cancelled, restore inventory
+        if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED) {
+            order.getOrderItems().forEach(item -> 
+                productService.incStock(item.getProductId(), item.getQuantity())
+            );
+        }
+        
         order.setStatus(status);
-        orderRepository.save(order);
+        return orderRepository.save(order);
     }
 
-    public void inventoryUpdate(Long productId, int quantity) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+    public OrderItems inventoryUpdate(Long productId, int quantity) {
+        Product product = productService.getById(productId);
 
-        Inventory inventory = inventoryRepository.findByProductId(product.getId())
-                .orElseThrow(() -> new RuntimeException("Inventory not found for product " + product.getId()));
+            
+            if (product.getQuantity() < quantity) {
+                throw new InvalidRequestException("Insufficient stock for product: " + product.getName());
+            }
+            
+            // Create OrderItems from CartItems
+            OrderItems orderItem = new OrderItems(product.getId(),product.getName(),quantity,product.getPrice());
+            
+            
+            // Update inventory
+            productService.decStock(product.getId(), quantity);
 
-        if (inventory.getStockQuantity() < quantity) {
-            throw new RuntimeException("Not enough stock for product: " + product.getName());
+            return orderItem;
+    }
+
+    @Override
+    @Transactional
+    public Order create(OrderRequest orderRequest) {
+        if (orderRequest.getOrderItems() == null || orderRequest.getOrderItems().isEmpty()) {
+            throw new InvalidRequestException("Order items cannot be empty");
         }
 
-        inventory.setStockQuantity(inventory.getStockQuantity() - quantity);
-        inventoryRepository.save(inventory);
+        double totalAmount = 0;
+
+        List<OrderItems> orderItems = new ArrayList<>();
+
+        // Validate stock and update inventory
+        for (OrderItemRequest item : orderRequest.getOrderItems()) {
+            Product product = productService.getById(item.getProductId());
+
+            
+           OrderItems orderItem = inventoryUpdate(item.getProductId(),item.getQuantity());
+           orderItems.add(orderItem);
+
+            // Calculate total
+            totalAmount += product.getPrice().doubleValue() * item.getQuantity();
+        }
+
+        // Create order
+        Order order = new Order(orderRequest.getUserId(),orderItems,totalAmount,orderRequest.getShippingAddress(),OrderStatus.PENDING);
+        order.setOrderItems(orderItems);
+        return orderRepository.save(order);
     }
 }

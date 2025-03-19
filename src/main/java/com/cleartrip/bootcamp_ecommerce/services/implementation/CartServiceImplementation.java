@@ -1,10 +1,10 @@
 package com.cleartrip.bootcamp_ecommerce.services.implementation;
 
+import com.cleartrip.bootcamp_ecommerce.exception.InvalidRequestException;
+import com.cleartrip.bootcamp_ecommerce.exception.NotFoundException;
 import com.cleartrip.bootcamp_ecommerce.models.Cart;
 import com.cleartrip.bootcamp_ecommerce.models.CartItem;
 import com.cleartrip.bootcamp_ecommerce.models.Product;
-import com.cleartrip.bootcamp_ecommerce.models.User;
-import com.cleartrip.bootcamp_ecommerce.repository.CartItemRepository;
 import com.cleartrip.bootcamp_ecommerce.repository.CartRepository;
 import com.cleartrip.bootcamp_ecommerce.repository.ProductRepository;
 import com.cleartrip.bootcamp_ecommerce.repository.UserRepository;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.annotation.SessionScope;
 
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -22,75 +23,83 @@ import java.util.Optional;
 @Service
 @SessionScope
 public class CartServiceImplementation implements CartService {
-    private final CartItemRepository cartItemRepository;
-    private final UserRepository userRepository;
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public CartServiceImplementation(UserRepository userRepository,
+    public CartServiceImplementation(ProductRepository productRepository,
                                      CartRepository cartRepository,
-                                     ProductRepository productRepository,
-                                     CartItemRepository cartItemRepository){
+                                     UserRepository userRepository){
+        this.productRepository = productRepository;
         this.cartRepository = cartRepository;
         this.userRepository = userRepository;
-        this.productRepository = productRepository;
-        this.cartItemRepository = cartItemRepository;
     }
 
 
     @Override
-    public List<CartItem> getCartByUserId(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        Cart cart = getCartByUser(user);
-        return cart.getCartItems();
+    public Cart getByUserId(Long userId) {
+        return cartRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    Cart newCart = new Cart();
+                    newCart.setUserId(userRepository.findById(userId)
+                            .orElseThrow(() -> new NotFoundException("User not found: " + userId)).getId());
+                    newCart.setCartItems(new ArrayList<>());
+                    return cartRepository.save(newCart);
+                });
     }
 
     @Override
-    public Cart getCartByUser(User user) {
-        return cartRepository.findByUser(user).orElseGet(() -> {
-            Cart newCart = new Cart();
-            newCart.setUser(user);
-            return cartRepository.save(newCart);
-        });
-    }
-
-    @Override
-    public Cart addToCart(Long userId, Long productId, int quantity) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Cart addItem(Long userId, Long productId, int quantity) {
+        if (quantity <= 0) {
+            throw new InvalidRequestException("Quantity must be positive");
+        }
+        Cart cart = getByUserId(userId);
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new NotFoundException("Product not found"));
 
-        Cart cart = getCartByUser(user);
         Optional<CartItem> existingItem = cart.getCartItems().stream()
-                .filter(item -> item.getProduct().equals(product))
+                .filter(item -> item.getProductId().equals(product.getId()))
                 .findFirst();
 
-        if (existingItem.isPresent()) {
-            existingItem.get().setQuantity(existingItem.get().getQuantity() + quantity);
-        } else {
-            CartItem cartItem = new CartItem(cart, product, quantity);
-            cart.getCartItems().add(cartItem);
+        List<CartItem> items = cart.getCartItems();
+        boolean found = false;
+
+        for (CartItem item : items) {
+            if (item.getProductId().equals(productId)) {
+                int newQuantity = item.getQuantity() + quantity;
+                if (newQuantity > product.getQuantity()) {
+                    throw new InvalidRequestException("Requested quantity exceeds available stock");
+                }
+                item.setQuantity(newQuantity);
+                found = true;
+                break;
+            }
         }
 
+        if (!found) {
+            if (quantity > product.getQuantity()) {
+                throw new InvalidRequestException("Requested quantity exceeds available stock");
+            }
+            CartItem newItem = new CartItem(productId, quantity);
+            items.add(newItem);
+        }
+        cart.setItems(items);
+        cart.setTotalAmount(getTotalAmount(userId));
         return cartRepository.save(cart);
     }
 
     @Override
-    public Cart reduceFromCart(Long userId, Long productId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Cart reduceItem(Long userId, Long productId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Cart not found for user: " + userId));
 
         boolean productExist = false;
-
-        Cart cart = getCartByUser(user);
 
         Iterator<CartItem> iterator = cart.getCartItems().iterator();
         while (iterator.hasNext()) {
             CartItem item = iterator.next();
-            if (item.getProduct().getId().equals(productId)) {
+            if (item.getProductId().equals(productId)) {
                 productExist = true;
                 if (item.getQuantity() > 1) {
                     item.setQuantity(item.getQuantity() - 1);
@@ -101,39 +110,49 @@ public class CartServiceImplementation implements CartService {
             }
         }
         if(!productExist){
-            throw new RuntimeException("Product not found in cart");
+            throw new NotFoundException("Product not found in cart");
         }
+        cart.setItems(cart.getCartItems());
+        cart.setTotalAmount(getTotalAmount(userId));
         return cartRepository.save(cart);
     }
 
     @Override
     @Transactional
-    public Cart clearCart(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Cart clear(Long userId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Cart not found for user: " + userId));
 
-        Cart cart = getCartByUser(user);
-        cartItemRepository.deleteByCart(cart);
-        return cart;
-    }
-
-    @Override
-    public Cart removeFromCart(Long userId, Long productId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Cart cart = getCartByUser(user);
-        cart.getCartItems().removeIf(item -> item.getProduct().getId().equals(productId));
+        cart.getCartItems().clear();
+        cart.setItemsJson("[]");
+        cart.setTotalAmount(getTotalAmount(userId));
         return cartRepository.save(cart);
     }
 
     @Override
+    public Cart removeItem(Long userId, Long productId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Cart not found for user: " + userId));
+        cart.getCartItems().removeIf(item -> item.getProductId().equals(productId));
+        cart.setItems(cart.getCartItems());
+        cart.setTotalAmount(getTotalAmount(userId));
+        return cartRepository.save(cart);
+    }
+
+  
     public double getTotalAmount(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        Cart cart = getCartByUser(user);
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Cart not found for user: " + userId));
         List<CartItem> cartItems = cart.getCartItems();
-        return cartItems.stream().mapToDouble(item -> item.getProduct().getPrice().doubleValue() * item.getQuantity()).sum();
+        double total = 0;
+
+        for (CartItem item : cartItems) {
+            Product product = productRepository.findById(item.getProductId())
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+            total += product.getPrice().doubleValue() * item.getQuantity();
+        }
+
+        return total;
     }
 }
 

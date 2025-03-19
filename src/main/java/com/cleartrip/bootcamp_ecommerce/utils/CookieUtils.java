@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpSession;
 
 public class CookieUtils {
     public static boolean isAdmin(HttpServletRequest request) {
-        HttpSession session = request.getSession(false); // Don't create a new session if not present
+        HttpSession session = request.getSession(false);
 
         if (session == null) {
             System.out.println("Session null");

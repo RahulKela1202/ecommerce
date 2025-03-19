@@ -1,10 +1,14 @@
 package com.cleartrip.bootcamp_ecommerce.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
-import org.aspectj.weaver.ast.Or;
-
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -13,39 +17,59 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler","orders"})
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @Column(name = "totalAmount")
-    private Double totalAmount;
+    @JsonIgnore
+    @Column(name = "items", columnDefinition = "json")
+    private String itemsJson;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    private OrderStatus status;  // PENDING, SHIPPED, DELIVERED, CANCELLED
+    @Transient
+    private List<OrderItems> orderItems = new ArrayList<>();
 
-    @Column(name="shippingAddress")
+    @Column(name = "amount", nullable = false)
+    private double totalAmount;
+
+    @Column(name = "address", nullable = false)
     private String shippingAddress;
 
-    @JsonIgnoreProperties("order")
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<OrderItems> orderItems;
+    @Column(name = "status")
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
 
-    public Order(User user,Double totalAmount, OrderStatus status, String shippingAddress){
-        this.shippingAddress = shippingAddress;
-        this.status = status;
+    public Order(Long userId, List<OrderItems> orderItems, double totalAmount, String shippingAddress, OrderStatus orderStatus) {
+        this.userId = userId;
+        this.orderItems = orderItems;
         this.totalAmount = totalAmount;
-        this.user = user;
-    }
-    public Order(User user, OrderStatus status, String shippingAddress){
         this.shippingAddress = shippingAddress;
-        this.status = status;
-        this.user = user;
+        this.status = orderStatus;
+    }
+
+
+    public List<OrderItems> getOrderItems() {
+        if (orderItems.isEmpty() && itemsJson != null) {
+            try {
+                orderItems = objectMapper.readValue(itemsJson, new TypeReference<List<OrderItems>>() {});
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Error deserializing order items", e);
+            }
+        }
+        return orderItems;
+    }
+
+    public void setOrderItems(List<OrderItems> items) {
+        this.orderItems = items;
+        try {
+            this.itemsJson = objectMapper.writeValueAsString(items);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error serializing order items", e);
+        }
     }
 }
 

@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+
 
 @RestController
 @RequestMapping("/users")
@@ -26,7 +26,7 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<User>>> getAllUser(User user){
-        return ResponseEntity.ok(new ApiResponse<>("success", userService.getAllUser(),"Retrieved All Users"));
+        return ResponseEntity.ok(new ApiResponse<>("success", userService.getAll(),"Retrieved All Users"));
     }
 
     @PostMapping("/login")
@@ -51,11 +51,11 @@ public class UserController {
 
     @PostMapping("/add")
     public ResponseEntity<ApiResponse<User>> addUser(@RequestBody User user){
-        return ResponseEntity.ok(new ApiResponse<>("Success",userService.addUser(user),"User Added successful"));
+        return ResponseEntity.ok(new ApiResponse<>("Success",userService.create(user),"User Added successful"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Optional<User>>> getUserById(@PathVariable Long id){
-        return ResponseEntity.ok(new ApiResponse<>("Success",userService.getById(id),"Logout successful"));
+    public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable Long id){
+        return ResponseEntity.ok(new ApiResponse<>("Success",userService.getById(id),"User Retrived"));
     }
 }

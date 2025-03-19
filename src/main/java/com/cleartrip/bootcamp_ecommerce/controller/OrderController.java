@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+
 
 @RestController
 @RequestMapping("/order")
@@ -29,7 +29,7 @@ public class OrderController {
 
     @PostMapping("/new")
     public ResponseEntity<ApiResponse<Order>>  createNewOrder(@RequestBody OrderRequest order){
-        return ResponseEntity.ok(new ApiResponse<>("success",orderService.createOrder(order),"Created New Order"));
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.create(order),"Created New Order"));
     }
 
     @PostMapping("/cart/checkout")
@@ -41,17 +41,17 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Order>>> getAllOrder(){
-        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getAllOrder(),"Orders Retrieved"));
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getAll(),"Orders Retrieved"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Optional<Order>>> getOrderById(@PathVariable Long id){
-        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getOrderById(id),"Orders Retrieved"));
+    public ResponseEntity<ApiResponse<Order>> getOrderById(@PathVariable Long id){
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getById(id),"Orders Retrieved"));
     }
 
     @GetMapping("user/{id}")
     public ResponseEntity<ApiResponse<List<Order>>> getOrderByUserId(@PathVariable Long id){
-        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getOrderByUserId(id),"Orders Retrieved"));
+        return ResponseEntity.ok(new ApiResponse<>("success",orderService.getByUserId(id),"Orders Retrieved"));
     }
 
     @PatchMapping("/{orderId}/update-status")
@@ -63,7 +63,7 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("error",null,"Access Denied"));
         }
 
-        orderService.updateOrderStatus(orderId, status);
+        orderService.updateStatus(orderId, status);
         return ResponseEntity.ok(new ApiResponse<>("success","Order status updated to " + status,"Updated Order Status"));
     }
 }

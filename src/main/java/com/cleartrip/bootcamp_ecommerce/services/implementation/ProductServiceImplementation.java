@@ -1,158 +1,141 @@
 package com.cleartrip.bootcamp_ecommerce.services.implementation;
 
-import com.cleartrip.bootcamp_ecommerce.models.Inventory;
+import com.cleartrip.bootcamp_ecommerce.exception.InvalidRequestException;
+import com.cleartrip.bootcamp_ecommerce.exception.NotFoundException;
 import com.cleartrip.bootcamp_ecommerce.models.Product;
-import com.cleartrip.bootcamp_ecommerce.repository.CartItemRepository;
-import com.cleartrip.bootcamp_ecommerce.repository.InventoryRepository;
-import com.cleartrip.bootcamp_ecommerce.repository.OrderItemsRepository;
 import com.cleartrip.bootcamp_ecommerce.repository.ProductRepository;
 import com.cleartrip.bootcamp_ecommerce.services.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
+
 
 @Service
 public class ProductServiceImplementation implements ProductService {
-    private final ProductRepository productRepository;
-    private final InventoryRepository inventoryRepository;
-    private final CartItemRepository cartItemRepository;
-    private final OrderItemsRepository orderItemsRepository;
-
     @Autowired
-    public ProductServiceImplementation(ProductRepository productRepository,
-                                        InventoryRepository inventoryRepository,
-                                        CartItemRepository cartItemRepository,
-                                        OrderItemsRepository orderItemsRepository){
-        this.productRepository = productRepository;
-        this.inventoryRepository = inventoryRepository;
-        this.cartItemRepository = cartItemRepository;
-        this.orderItemsRepository = orderItemsRepository;
-    }
+    private ProductRepository productRepository;
 
     @Override
-    public String addNewProduct(Product product, int stockQuantity){
-        try {
-            Product savedProduct = productRepository.save(product);
-            Inventory inventory = new Inventory();
-            inventory.setProduct(savedProduct);
-            inventory.setStockQuantity(stockQuantity);
-            inventoryRepository.save(inventory);
-            return "Product registered successfully!";
-        } catch (Exception e) {
-            return e.getMessage();
+    public String create(Product product) {
+        if (product.getQuantity() < 0) {  
+            throw new InvalidRequestException("Quantity cannot be negative");
         }
+        productRepository.save(product);
+        return "Product created successfully";
     }
 
     @Override
-    public List<Product> getSortedProducts(String sortBy, String sortDirection,int page,int size) {
-        Sort.Direction direction = sortDirection.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-        Sort sort = Sort.by(direction, sortBy);
+    public Page<Product> getFiltered(
+            String category, 
+            String name, 
+            BigDecimal minPrice, 
+            BigDecimal maxPrice,
+            String sortBy,
+            String sortDir,
+            int page, 
+            int size) {
+            
+        sortBy = (sortBy == null || sortBy.isEmpty()) ? "id" : sortBy;
+        sortDir = (sortDir == null || sortDir.isEmpty()) ? "asc" : sortDir.toLowerCase();
+        
+        Sort sort = sortDir.equals("asc") ? 
+            Sort.by(sortBy).ascending() : 
+            Sort.by(sortBy).descending();
 
-        return productRepository.findAll(sort).stream()
-                .skip((long) page * size)  // Skip previous pages
-                .limit(size)               // Limit results to page size
-                .collect(Collectors.toList());
+        return productRepository.findByFilters(
+            category, 
+            name, 
+            minPrice, 
+            maxPrice, 
+            PageRequest.of(page, size, sort)
+        );
     }
 
-    @Override
-    public List<Product> getFilteredProducts(String category, BigDecimal minPrice, BigDecimal maxPrice,int page,int size) {
-        return productRepository.findByFilters(category, minPrice, maxPrice).stream()
-                .skip((long) page * size)  // Skip previous pages
-                .limit(size)               // Limit results to page size
-                .collect(Collectors.toList());
-    }
-
-//    @Override
-//    public Product updateProduct(Long id, Product updatedProduct) {
-//        Product existingProduct = productRepository.findById(id)
-//                .orElseThrow(() -> new RuntimeException("Product not found"));
-//
-//        if(updatedProduct.getName() != null) {
-//            existingProduct.setName(updatedProduct.getName());
-//        }
-//        if(updatedProduct.getDescription() != null){
-//            existingProduct.setDescription(updatedProduct.getDescription());
-//        }
-//        if(updatedProduct.getPrice() != null) {
-//            existingProduct.setPrice(updatedProduct.getPrice());
-//        }
-//        if(updatedProduct.getCategory() != null) {
-//            existingProduct.setCategory(updatedProduct.getCategory());
-//        }
-//        return productRepository.save(existingProduct);
-//    }
 
     @Override
-    public Product updateProduct(Long id, Map<String, Object> updates) {
+    public Product update(Long id, Map<String, Object> updates) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new NotFoundException("Product not found with id: " + id));
 
         updates.forEach((key, value) -> {
-            switch (key) {
-                case "name" -> product.setName((String) value);
-                case "description" -> product.setDescription((String) value);
-                case "price" -> product.setPrice(new BigDecimal(value.toString())); // Ensure BigDecimal conversion
-                case "category" -> product.setCategory((String) value);
-            }
+                switch (key) {
+                    case "name" -> product.setName((String) value);
+                    case "description" -> product.setDescription((String) value);
+                    case "price" -> product.setPrice(new BigDecimal(value.toString()));
+                    case "category" -> product.setCategory((String) value);
+                    case "quantity" -> product.setQuantity((Integer) value);
+                    default -> throw new InvalidRequestException("Invalid field: " + key);
+                }
         });
-
         return productRepository.save(product);
     }
 
+    @Override
+    public Product delete(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+        productRepository.delete(product);
+        return product;
+    }
 
 
     @Override
-    public String deleteProduct(Long id) {
-        if (cartItemRepository.existsByProductId(id)) {
-            return "Cannot delete: Product is present in a user's cart.";
+    public Page<Product> getAll(int page, int size) {
+        return productRepository.findAll(PageRequest.of(page, size));
+    }
+
+    @Override
+    public Product getById(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Product not found with id: " + id));
+    }
+
+    @Override
+    public List<Map<String, Object>> getInventory() {
+        List<Product> products = productRepository.findAll();
+        return products.stream()
+            .map(product -> {
+                Map<String, Object> inventory = new HashMap<>();
+                inventory.put("id", product.getId());
+                inventory.put("name", product.getName());
+                inventory.put("quantity", product.getQuantity());
+                return inventory;
+            })
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public String incStock(Long id, int quantity) {
+        Product product = productRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("Product not found"));
+            
+        int newQuantity = product.getQuantity() + quantity;
+        product.setQuantity(newQuantity);
+        productRepository.save(product);
+        return "Stock increased successfully";
+    }
+
+     @Override
+    public String decStock(Long id, int quantity) {
+        Product product = productRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("Product not found"));
+            
+        int newQuantity = product.getQuantity() - quantity;
+        if (newQuantity < 0) {
+            throw new InvalidRequestException("Insufficient stock");
         }
-
-        if (orderItemsRepository.existsByProductId(id)) {
-            return "Cannot delete: Product has been ordered before.";
-        }
-
-        try {
-            productRepository.deleteById(id);
-            return "Product deleted successfully.";
-        } catch (Exception e) {
-            return "Error occurred while deleting the product.";
-        }
+        product.setQuantity(newQuantity);
+        productRepository.save(product);
+        return "Stock decreased successfully";
     }
 
-
-    @Override
-    public List<Product> getAllProducts(int page,int size) {
-        return productRepository.findAll().stream()
-                .skip((long) page * size)  // Skip previous pages
-                .limit(size)               // Limit results to page size
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public Optional<Product> getProductById(Long id) {
-        return productRepository.findById(id);
-    }
-
-    @Override
-    public List<Product> searchProductsByName(String name,int page,int size) {
-        return productRepository.findByName(name).stream()
-                .skip((long) page * size)  // Skip previous pages
-                .limit(size)               // Limit results to page size
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<Product> searchProductsByCategory(String category,int page,int size) {
-        return productRepository.findByCategory(category).stream()
-                .skip((long) page * size)  // Skip previous pages
-                .limit(size)               // Limit results to page size
-                .collect(Collectors.toList());
-    }
 
 }

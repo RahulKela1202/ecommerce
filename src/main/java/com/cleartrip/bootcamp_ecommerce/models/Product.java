@@ -7,31 +7,31 @@ import lombok.*;
 
 
 import java.math.BigDecimal;
-import java.util.List;
+
 
 @Entity
+@Table(name = "products")
 @Data
-@Table(name="products")
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
-    @Column(name="name")
+
+    @Column(name = "name", nullable = false)
     private String name;
-    @Column(name="description")
+
+    @Column(name = "description", nullable = false)
     private String description;
-    @Column(name="price")
+
+    @Column(name = "price", nullable = false)
     private BigDecimal price;
-    @Column(name="category")
+
+    @Column(name = "category", nullable = false)
     private String category;
-
-    @JsonIgnore
-    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Inventory inventory;
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<OrderItems> orderItems;
+    
+    @Column(name = "quantity", nullable = false)
+    private int quantity;
 }

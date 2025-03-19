@@ -10,9 +10,9 @@ import java.util.Optional;
 
 public interface OrderService {
     Order checkout(Long userId, String shippingAddress);
-    Order createOrder(OrderRequest orderRequest);
-    List<Order> getAllOrder();
-    Optional<Order> getOrderById(Long id);
-    List<Order> getOrderByUserId(Long id);
-    void updateOrderStatus(Long orderId, OrderStatus status);
+    List<Order> getAll();
+    Order getById(Long id);
+    List<Order> getByUserId(Long id);
+    Order create(OrderRequest orderRequest);
+    Order updateStatus(Long id, OrderStatus status);
 }

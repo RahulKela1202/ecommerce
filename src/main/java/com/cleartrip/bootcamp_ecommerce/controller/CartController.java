@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/cart")
@@ -30,14 +29,10 @@ public class CartController {
 
     @PostMapping("/add/{productId}")
     public ResponseEntity<ApiResponse<Cart>> addToCart(@PathVariable Long productId, @RequestParam int quantity, HttpServletRequest request) {
-        Optional<Product> optionalProduct = productService.getProductById(productId);
-        if (optionalProduct.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ApiResponse<>("error", null, "Product not found"));
-        }
+        Product product = productService.getById(productId);
+
         Long id  = CookieUtils.getUserId(request);
-        Product product = optionalProduct.get();
-        Cart cart = cartService.addToCart(id,product.getId(), quantity);
+        Cart cart = cartService.addItem(id,product.getId(), quantity);
         return ResponseEntity.ok(new ApiResponse<>("success", cart, "Product added successfully"));
     }
 
@@ -45,7 +40,7 @@ public class CartController {
     public ResponseEntity<ApiResponse<Cart>> reduceFromCart(@PathVariable Long productId, HttpServletRequest request) {
         Long id  = CookieUtils.getUserId(request);
         try {
-            Cart cart = cartService.reduceFromCart(id, productId);
+            Cart cart = cartService.reduceItem(id, productId);
             return ResponseEntity.ok(new ApiResponse<>("success",cart,"Product Quantity reduced"));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse<>("error",null,e.getMessage()));
@@ -55,26 +50,20 @@ public class CartController {
     @DeleteMapping("/remove/{productId}")
     public ResponseEntity<ApiResponse<Cart>> removeFromCart(@PathVariable Long productId,HttpServletRequest request) {
         Long id  = CookieUtils.getUserId(request);
-        Cart cart = cartService.removeFromCart(id,productId);
+        Cart cart = cartService.removeItem(id,productId);
         return ResponseEntity.ok(new ApiResponse<>("success",cart,"Product removed"));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CartItem>>> viewCart(HttpServletRequest request) {
         Long id  = CookieUtils.getUserId(request);
-        return ResponseEntity.ok(new ApiResponse<>("success",cartService.getCartByUserId(id),"User Cart Retrieved"));
-    }
-
-    @GetMapping("/total")
-    public ResponseEntity<ApiResponse<Double>> getTotalAmount(HttpServletRequest request) {
-        Long id  = CookieUtils.getUserId(request);
-        return ResponseEntity.ok(new ApiResponse<>("success",cartService.getTotalAmount(id),"Total Amount calculated"));
+        return ResponseEntity.ok(new ApiResponse<>("success",cartService.getByUserId(id).getCartItems(),"User Cart Retrieved"));
     }
 
     @DeleteMapping("/clear")
     public ResponseEntity<ApiResponse<Cart>> clearCart(HttpServletRequest request) {
         Long id  = CookieUtils.getUserId(request);
-        Cart cart = cartService.clearCart(id);
+        Cart cart = cartService.clear(id);
         return ResponseEntity.ok(new ApiResponse<>("success",cart,"Cart cleared"));
     }
 }
